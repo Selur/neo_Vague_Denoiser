@@ -29,7 +29,7 @@ struct DSVideoInfo
     , Frames(frames)
   { }
   DSVideoInfo(const VSVideoInfo* vsvi)
-    : Format(vsvi->format)
+    : Format(&vsvi->format)
     , FPSNum(vsvi->fpsNum), FPSDenom(vsvi->fpsDen)
     , Width(vsvi->width), Height(vsvi->height)
     , Frames(vsvi->numFrames)
@@ -45,8 +45,8 @@ struct DSVideoInfo
     , Audio_NChannels(avsvi.nchannels)
     , Field(avsvi.image_type)
   { }
-  const VSVideoInfo* ToVSVI(const VSCore* vscore, const VSAPI* vsapi) {
-    return new VSVideoInfo {Format.ToVSFormat(vscore, vsapi), FPSNum, FPSDenom, Width, Height, Frames, 0};
+  VSVideoInfo ToVSVI(const VSCore* vscore, const VSAPI* vsapi) {
+    return VSVideoInfo {Format.ToVSFormat(vscore, vsapi), FPSNum, FPSDenom, Width, Height, Frames};
   }
   const VideoInfo ToAVSVI() {
     return VideoInfo{Width, Height, static_cast<unsigned>(FPSNum), static_cast<unsigned>(FPSDenom), Frames, Format.ToAVSFormat(), Audio_SPS, Audio_SType, Audio_NSamples, Audio_NChannels, Field};

@@ -202,7 +202,13 @@ namespace AVSInterface
 
 const AVS_Linkage *AVS_linkage = NULL;
 
-extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, AVS_Linkage* linkage)
+#if defined(__GNUC__) || defined(__clang__)
+#define DS_AVS_EXPORT __attribute__((visibility("default")))
+#else
+#define DS_AVS_EXPORT
+#endif
+
+extern "C" DS_AVS_EXPORT __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, AVS_Linkage* linkage)
 {
   AVS_linkage = linkage;
   auto filters = RegisterAVSFilters();

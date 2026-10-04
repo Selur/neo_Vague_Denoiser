@@ -10,6 +10,8 @@ It was originally written by Lefungus, and later modified by Kurosu and Fizick f
 
 This project backports VapourSynth-VagueDenoiser to AviSynth+. Parameter names follow VapourSynth-VagueDenoiser.
 
+The VapourSynth interface uses the VapourSynth API 4 (VapourSynth R55 or newer). The AviSynth+ interface is unchanged.
+
 ## Usage
 
 ```python
@@ -45,7 +47,32 @@ Parameters:
         4 - Use up to AVX (for core)
         5 - Use up to AVX2 (for data copy)
 
-## Build on Windows
+## Installation
+
+Prebuilt wheels for Windows x64, Linux x86_64 and macOS arm64 are attached to each [GitHub release](../../releases). They are meant for the pip-installed `VapourSynth` package:
+
+```
+pip install vapoursynth_neo_vague_denoiser-<version>-py3-none-<platform>.whl
+```
+
+The plugin is installed into `site-packages/vapoursynth/plugins`, which VapourSynth autoloads. For other VapourSynth installs (installer, system package), copy the library from the wheel into your plugin folder manually.
+
+On architectures without x86 SIMD (e.g. macOS arm64) only the C routines are available, `opt` has no effect there.
+
+## Compilation (Meson)
+
+Meson and Ninja are required. The VapourSynth API 4 and AviSynth+ headers are bundled, a system installation of either is optional.
+
+```
+meson setup build
+ninja -C build
+```
+
+On macOS the plugin is built as `libneo-vague-denoiser.dylib`, which is the only extension VapourSynth autoloads there. Use `pip wheel .` to build a wheel (requires `meson-python`).
+
+The planes of a frame are processed concurrently with C++17 parallel algorithms when available (`-Dparallel=enabled|disabled|auto`). MSVC supports this out of the box, with GCC/libstdc++ the TBB library is required.
+
+## Compilation (MSVC, CMake)
 
 ```bat
 set "CONFIG=%~1"

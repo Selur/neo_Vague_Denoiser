@@ -8,10 +8,14 @@ file(GLOB AVX2_CODE_IMPL "src/*AVX2.cpp")
 add_library(neo-vague-denoiser SHARED main.cpp src/version.rc ${CODE} ${CODE_IMPL})
 set_property(TARGET neo-vague-denoiser PROPERTY CXX_STANDARD 17)
 option(ENABLE_PAR "Enable C++17 Parallel Execution" ON)
-add_compile_definitions(VS_TARGET_CPU_X86)
 
 find_package(Git REQUIRED)
-execute_process(COMMAND ${GIT_EXECUTABLE} describe --first-parent --tags --always OUTPUT_VARIABLE GIT_REPO_VERSION)
+execute_process(
+  COMMAND ${GIT_EXECUTABLE} describe --first-parent --tags --always
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_REPO_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
 string(REGEX REPLACE "(r[0-9]+).*" "\\1" VERSION ${GIT_REPO_VERSION})
 
 configure_file (
@@ -32,7 +36,8 @@ else()
   include_directories(include/avisynth)
 endif()
 
-pkg_check_modules(VAPOURSYNTH vapoursynth)
+# VapourSynth API 4 (R55 or newer), falls back to the bundled headers.
+pkg_check_modules(VAPOURSYNTH vapoursynth>=55)
 if(VAPOURSYNTH_FOUND)
   include_directories(${VAPOURSYNTH_INCLUDE_DIRS})
 else()

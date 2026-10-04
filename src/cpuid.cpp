@@ -19,6 +19,9 @@
 //	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 #include <avs/cpuid.h>
+
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+
 #include <avs/config.h>
 #include <stdint.h>
 #ifdef AVS_WINDOWS
@@ -153,3 +156,12 @@ int GetCPUFlags() {
   static int lCPUExtensionsAvailable = CPUCheckForExtensions();
   return lCPUExtensionsAvailable;
 }
+
+#else
+
+// No x86 SIMD routines on other architectures, always use the C routine.
+int GetCPUFlags() {
+  return 0;
+}
+
+#endif
