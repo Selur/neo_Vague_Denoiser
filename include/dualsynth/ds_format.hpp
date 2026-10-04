@@ -15,12 +15,12 @@ struct DSFormat
   int BitsPerSample {8}, BytesPerSample {1};
   int Planes {3};
   DSFormat() {}
-  DSFormat(const VSFormat* format)
+  DSFormat(const VSVideoFormat* format)
   {
     Planes = format->numPlanes;
-    IsFamilyYUV = format->colorFamily == cmYUV || format->colorFamily == cmGray;
-    IsFamilyRGB = format->colorFamily == cmRGB;
-    IsFamilyYCC = format->colorFamily == cmYCoCg;
+    IsFamilyYUV = format->colorFamily == cfYUV || format->colorFamily == cfGray;
+    IsFamilyRGB = format->colorFamily == cfRGB;
+    IsFamilyYCC = false;
     SSW = format->subSamplingW;
     SSH = format->subSamplingH;
     BitsPerSample = format->bitsPerSample;
@@ -29,16 +29,17 @@ struct DSFormat
     IsFloat = format->sampleType == stFloat;
   }
 
-  const VSFormat* ToVSFormat(const VSCore* vscore, const VSAPI* vsapi) const
+  VSVideoFormat ToVSFormat(const VSCore* vscore, const VSAPI* vsapi) const
   {
-    VSColorFamily family = cmYUV;
+    VSColorFamily family = cfYUV;
     if (IsFamilyYUV)
-      family = Planes == 1 ? cmGray : cmYUV;
+      family = Planes == 1 ? cfGray : cfYUV;
     else if (IsFamilyRGB)
-      family = cmRGB;
-    else if (IsFamilyYCC)
-      family = cmYCoCg;
-    return vsapi->registerFormat(family, IsInteger ? stInteger : stFloat, BitsPerSample, SSW, SSH, const_cast<VSCore*>(vscore));
+      family = cfRGB;
+    VSVideoFormat vsformat;
+    if (!vsapi->queryVideoFormat(&vsformat, family, IsInteger ? stInteger : stFloat, BitsPerSample, SSW, SSH, const_cast<VSCore*>(vscore)))
+      throw "unable to query a valid video format.";
+    return vsformat;
   }
 
   DSFormat(int format)
@@ -46,7 +47,7 @@ struct DSFormat
     const int componentBitSizes[8] = {8,16,32,0,0,10,12,14};
     if (format == VideoInfo::CS_I420)
       format = VideoInfo::CS_YV12;
-
+    
     auto PYUV = VideoInfo::CS_PLANAR | VideoInfo::CS_YUV;
     IsFamilyYUV = (format & PYUV) == PYUV;
     auto PRGB = VideoInfo::CS_PLANAR | VideoInfo::CS_BGR;
@@ -62,7 +63,7 @@ struct DSFormat
       Planes = 4;
     else if (IsFamilyRGB && (format & VideoInfo::CS_RGBA_TYPE) == VideoInfo::CS_RGBA_TYPE)
       Planes = 4;
-
+    
     if (IsFamilyYUV && Planes > 1) {
       SSW = ((format >> VideoInfo::CS_Shift_Sub_Width) + 1) & 3;
       SSH = ((format >> VideoInfo::CS_Shift_Sub_Height) + 1) & 3;

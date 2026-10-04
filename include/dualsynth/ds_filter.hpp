@@ -11,10 +11,13 @@ struct Filter
 {
   DSVideoInfo in_vi;
   FetchFrameFunctor* fetch_frame;
+  virtual ~Filter() = default;
   virtual const char* VSName() const { return "FilterFoo"; }
   virtual const char* AVSName() const { return "FilterFoo"; }
   virtual const MtMode AVSMode() const { return MT_SERIALIZED; }
-  virtual const VSFilterMode VSMode() const { return fmSerial; }
+  virtual const VSFilterMode VSMode() const { return fmFrameState; }
+  // Frame request pattern of the input clip, see VSRequestPattern.
+  virtual const VSRequestPattern VSRequest() const { return rpGeneral; }
   virtual const std::vector<Param> Params() const = 0;
   virtual const std::string VSParams() const
   {
@@ -25,7 +28,7 @@ struct Filter
       if (!p.VSEnabled) continue;
       std::string type_name;
       switch(p.Type) {
-        case Clip: type_name = "clip"; break;
+        case Clip: type_name = "vnode"; break;
         case Integer: type_name = "int"; break;
         case Float: type_name = "float"; break;
         case Boolean: type_name = "int"; break;
@@ -43,7 +46,6 @@ struct Filter
   virtual const std::string AVSParams() const
   {
     std::stringstream ss;
-    std::stringstream ss_arrays;
     auto params = this->Params();
     for (auto &&p : params)
     {
@@ -56,16 +58,11 @@ struct Filter
         case Boolean: type_name = 'b'; break;
         case String: type_name = 's'; break;
       }
-      if (p.IsOptional) {
+      if (p.IsOptional)
         ss << '[' << p.Name << ']';
-        if (p.IsArray) {
-          ss_arrays << '[' << p.Name << "()]" << type_name;
-          type_name = 's';
-        }
-      }
       ss << type_name;
     }
-    return ss.str() + ss_arrays.str();
+    return ss.str();
   };
   virtual void Initialize(InDelegator* in, DSVideoInfo in_vi, FetchFrameFunctor* fetch_frame)
   {

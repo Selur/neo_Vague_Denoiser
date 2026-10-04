@@ -52,6 +52,7 @@ struct VagueDenoiser final : Filter {
   const char* AVSName() const override { return "neo_vd"; }
   const MtMode AVSMode() const override { return MT_NICE_FILTER; }
   const VSFilterMode VSMode() const override { return fmParallel; }
+  const VSRequestPattern VSRequest() const override { return rpStrictSpatial; }
   const std::vector<Param> Params() const override {
     return std::vector<Param> {
       Param {"clip", Clip, false, true, true, false},
@@ -79,25 +80,37 @@ struct VagueDenoiser final : Filter {
 
     in->Read("opt", opt);
 
+    // VapourSynth: planes=[...], AviSynth+: y/u/v (reading "planes" throws there).
+    std::vector<int> user_planes;
+    bool has_planes = true;
     try {
+      in->Read("planes", user_planes);
+    }
+    catch (const char *) {
+      has_planes = false;
+    }
+
+    if (has_planes) {
+      // Default: process every plane of the clip.
+      if (user_planes.empty())
+        for (int p = 0; p < in_vi.Format.Planes; p++)
+          user_planes.push_back(p);
       ep.process[0] =
       ep.process[1] =
       ep.process[2] =
       ep.process[3] = 2;
-      std::vector<int> user_planes {0, 1, 2};
-      in->Read("planes", user_planes);
       for (auto &&p : user_planes)
       {
-        if (p < in_vi.Format.Planes)
-          ep.process[p] = 3;
-        else
+        if (p < 0 || p >= in_vi.Format.Planes)
           throw "plane index out of range";
+        ep.process[p] = 3;
       }
     }
-    catch (const char *) {
+    else {
       ep.process[0] =
       ep.process[1] =
-      ep.process[2] = 3;
+      ep.process[2] =
+      ep.process[3] = 3;
       in->Read("y", ep.process[0]);
       in->Read("u", ep.process[1]);
       in->Read("v", ep.process[2]);
@@ -191,6 +204,7 @@ struct VagueDenoiser final : Filter {
     }
     filter = filter_C;
 
+  #ifdef NEO_VD_X86
     if ((CPUFlags & CPUF_SSE) && (opt == 0 || opt > 1))
       filter = filter_SSE;
 
@@ -208,6 +222,10 @@ struct VagueDenoiser final : Filter {
         case 1:  cast_from_pad = cast_from_pad_AVX2<uint8_t>;  cast_to_pad = cast_to_pad_AVX2<uint8_t>;  break;
         default: cast_from_pad = cast_from_pad_AVX2<uint16_t>; cast_to_pad = cast_to_pad_AVX2<uint16_t>; break;
       }
+  #else
+    // No x86 SIMD routines on other architectures (e.g. arm64), always use the C routines.
+    (void)CPUFlags;
+  #endif
   }
 
   DSFrame GetFrame(int n, std::unordered_map<int, DSFrame> in_frames) override
@@ -312,6 +330,13 @@ struct VagueDenoiser final : Filter {
   }
 
   ~VagueDenoiser() {
+    for (int p = 0; p < 3; p++) {
+      for (auto &&ptr : ep.padBuffer[p])
+        _aligned_free(ptr);
+      for (int t = 0; t < 3; t++)
+        for (auto &&ptr : ep.tmpBuffer[p][t])
+          _aligned_free(ptr);
+    }
   }
 };
 

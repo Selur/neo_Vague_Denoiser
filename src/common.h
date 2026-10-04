@@ -5,8 +5,20 @@
 #include <vector>
 #include <algorithm>
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+  #define NEO_VD_X86 1
+#endif
+
 #ifndef _WIN32
-  #define _aligned_malloc(a,b) aligned_alloc(b,a)
+  #include <cstdlib>
+  // aligned_alloc() requires the size to be a multiple of the alignment on some
+  // platforms (e.g. macOS), posix_memalign() does not.
+  inline void* _aligned_malloc(size_t size, size_t alignment) {
+    void* ptr = nullptr;
+    if (posix_memalign(&ptr, alignment, size) != 0)
+      return nullptr;
+    return ptr;
+  }
   #define _aligned_free(a) free(a)
 #endif
 
